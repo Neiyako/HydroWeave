@@ -12,6 +12,10 @@ Hydroweave 是一套**为青藏高原云水资源课题自行设计的实验体�
 
 > 一句话定位：**Hydroweave 负责把云水资源问题变成可计算、可证伪的模型，并交付图与误差边界。**
 
+> 📘 **第一次接手请先读 [docs/ONBOARDING.md](docs/ONBOARDING.md)**：上手文档把全部公式、
+> 来源依据、误差分析、实验规范、绘图规范与已有结论收在一处，读完即可上手。
+> 本 README 侧重"为什么这样设计"，ONBOARDING 侧重"具体怎么做、公式从哪来"。
+
 ## 体系结构：五个环节，一条证据链
 
 实验体系由五个环节串联，每个环节都对应本仓的具体代码与产物，不是概念图。
@@ -590,7 +594,8 @@ scripts/dev/
 scripts/demo/      合成试验台生成器（不依赖外接盘）
 scripts/analysis/  实验命令行的薄包装
 tests/             合成链路、运行清单、真实卷（-m real）、收支与误差（26 项）
-docs/img/          README 例图
+docs/ONBOARDING.md 上手文档：公式总账、来源依据、误差分析、实验与绘图规范、已有结论
+docs/img/          文档例图
 data/              实验产物（不入 Git，由 manifest 记录）
 ```
 
