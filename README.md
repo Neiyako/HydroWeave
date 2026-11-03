@@ -155,6 +155,80 @@ CFRAC = ( 100–500 hPa 内 RH ≥ RH_cloud 的层数 ) / ( 该层带内有效�
 
 > 代码位置：[`compute_day`](experiments/tp_cloud_water/eda.py#L110-L139)
 
+### 1.6 综合模型：云水资源收支（蔡淼体系）
+
+§1.1–§1.5 的三个代理量只描述「水汽有多少、可能成云多少」。**严格意义的云水资源
+必须走水物质收支**，本节给出完整可计算模型，实现在
+[`budget.py`](experiments/tp_cloud_water/budget.py)。
+
+**控制体定义**：区域 (X,Y) × 自地面到对流层顶 (Z)，时段 [0,T]。
+所有分项都是该控制体内该时段的**累计质量（kg）**，不是某一时刻的柱含量。
+这是与 §1.1 的 PW 最根本的区别——PW 是瞬时储量，GCWR 是收支余量。
+
+**三条收支方程**（论文式 1–3）：
+
+```text
+水汽：  Qv,终 − Qv,初 = Qv,入 − Qv,出 + 地面蒸发 − 净凝结     (1)
+水凝物：Qh,终 − Qh,初 = Qh,入 − Qh,出 − 降水   + 净凝结     (2)
+总物质：Qm,终 − Qm,初 = Qm,入 − Qm,出 + 地面蒸发 − 降水     (3)
+```
+
+三条方程中，只有净凝结和地面蒸发是未知量——其余各分量都能从三维场和风场算出，
+因此用 (2) 反算净凝结、用 (3) 反算地面蒸发：
+
+```text
+净凝结  C_net = Qh,终 − Qh,初 − Qh,入 + Qh,出 + 降水        (10)
+地面蒸发 E     = Qm,终 − Qm,初 − Qm,入 + Qm,出 + 降水        (12)
+```
+
+**总量与效率**（论文式 13–19）：
+
+```text
+GQv = Qv,初 + Qv,入 + E = Qv,终 + Qv,出 + C_net      (13)
+GQh = Qh,初 + Qh,入 + C_net = Qh,终 + Qh,出 + 降水    (14)
+GQm = Qm,初 + Qm,入 + E = Qm,终 + Qm,出 + 降水        (15)
+Em = 降水/GQm      Eh = 降水/GQh      P = 总凝结/GQv   (17)(18)
+Tv = Qv,平均/(降水/T)    Th = Qh,平均/(降水/T)        (19)
+```
+
+**GCWR（空中留存云水量）**是论文的核心指标，有三种写法，代码必须同时算并交叉核对：
+
+```text
+GCWR = GQh − 降水                     (20)  原始定义
+     = Qh,终 + Qh,出                  (21)  终端核算
+     = Qh,初 + Qh,入 + C_net − 降水    (22)  初始核算
+```
+
+> **实现陷阱（本仓实测踩到）**：式 (16) `GQm = GQv + GQh` 说的是**瞬时库存**，
+> 累计通量下**不成立**——净凝结在 GQv 里是汇、在 GQh 里是源，相加会重复计入一次。
+> 在合成试算中，按 `GQv + GQh` 计算 GQm 会使结果比正确值高约 60%。
+> 正确关系是 `GQm = GQv + GQh − C_net`，且 GQm 必须走式 (15) 独立核算。
+> 验收脚本对此设了单独标准（见 §4.6）。
+
+**边界平流**（论文 §2.2）。对每个边界面、每个层、每个时步取带符号质量：
+
+```text
+ΔM = ρ · q · u_n · ΔS · Δt             u_n 以指向控制体外为正      (23)
+输出 = Σ max(ΔM, 0)        输入 = Σ max(−ΔM, 0)                  (24)(25)
+```
+
+**降水累计**：1 mm = 1 kg·m⁻²，故 `GR = Σ Σ M_i·P_{i,n}·A_i`（式 26）。再分析中「自预报起点累计」的降水变量**必须先差分还原单步降水**，
+遇到负差分先查累计周期重置，**不得直接置零**。
+
+**为什么不能用柱云液水代替 GCWR**：柱含量是瞬时存量，且常不含雨雪霰等空中降水粒子；
+GCWR 是含初末存量、边界输送、净凝结与降水的时空收支量。二者不可互换。
+
+**与李颖等（2022）的边界**：水汽来源追踪（WAM-2，回答"水从哪来"）与 GCWR（回答
+"空中留了多少"）是两套不同框架，**来源贡献率不代入收支公式**，只作机理解释的背景。
+
+**量级体检**（[`sanity_check`](experiments/tp_cloud_water/budget.py)）。恒等式只能证明
+代数没写错，**证明不了分项是否来自同一控制体**。以论文 2011 年全国评估为参照
+（水汽瞬时平均 2.03×10¹⁴ kg、水凝物 1.14×10¹³ kg、年降水 6.58×10¹⁵ kg），
+应得 `Tv≈11 天`、`Th≈15 小时`、`Eh≈77%`；若试算出 `Tv` 数百天、`Th` 数万小时，
+说明分项口径错位（典型：年降水配瞬时库存、柱含量当区域累计量），此时**所有效率与
+GCWR 都无意义**，必须先修输入。本仓已用这组论文数值做端到端回归测试，
+锁住 `Th` 单位换算曾出现的 3600 倍误差。
+
 ## 二、经验公式：当前数据约束下的可计算集
 
 **这一节是体系的边界定义，也是最容易被跳过的一节。**
@@ -349,6 +423,57 @@ PW 会被系统性高估约五分之一——这个误差比所有数值误差�
 > 上述四条都属于**本仓实现与验证手段**的已知局限，已明确列出，不掩盖、不声称已解决。
 > 与数据变量缺失相关的边界不在此列——那是数据侧条件，已在 §2 与 §4.3 作为口径前提处理。
 
+### 4.6 GCWR 的误差分析：一阶传播与误差预算
+
+§4.1–§4.3 针对的是代理量（PW/RH/CFRAC）。GCWR 进入收支模型后误差结构变了：
+它是若干分项的**线性组合**，因此一阶（高斯）误差传播**精确成立**，不需要蒙特卡洛。
+
+由式 (21) `GCWR = Qh,终 + Qh,出`，偏导只有两个非零：
+
+```text
+∂GCWR/∂Qh,终 = 1     ∂GCWR/∂Qh,出 = 1     其余各项偏导为 0
+σ²_GCWR = σ²(Qh,终) + σ²(Qh,出)           （独立假设）
+```
+
+由此得到一个**反直觉但关键**的结论：`降水`、`Qh,初`、`Qh,入` 的观测误差对 GCWR
+**一阶无影响**——初值与输入在净凝结反算中被完全吸收，降水在式 (22) 中一正一负抵消。
+所以**改进降水观测不会直接降低 GCWR 的不确定度**；降低它只能靠测准水凝物场末值与边界输出。
+这条判断直接决定后续攻关优先级，也是"误差分析结论必须能改变行动"的示例。
+
+**口径误差用乘性因子独立传播**：
+
+```text
+σ_rel = sqrt( Σ f_i² )        f_i 为第 i 个口径误差的相对 1σ
+```
+
+方向一致的因子可合并成单向偏差；**方向相反的因子（掩膜致高估、Magnus 致低估）
+只能报区间，不能断言"偏高"或"偏低"**——代码在 `apply_calibration` 里强制该区分。
+
+**误差预算表**按对 GCWR 的贡献排序随机误差与口径误差，排序第一项即主导误差源。
+判定阈值**先定后用**，不按结果回调：
+
+| 相对 1σ | 判定 | 含义 |
+|---|---|---|
+| < 20% | CONCLUSIVE | 可支撑定量结论 |
+| 20%–50% | CONDITIONAL | 只支撑相对/定性结论 |
+| ≥ 50% | INSUFFICIENT_EVIDENCE | 只能报区间，不能断言大小 |
+
+这三档与 §4.3 同一原则：方向已知的偏差比方向未知的有用；误差连量级都压不住时，
+报"不知道"比报一个数更有价值。
+
+**GCWR 专有验收标准**（补充 §4.4 的六条）：
+
+| 编号 | 标准 | 手段 |
+|---|---|---|
+| S7 | 式 (20)(21)(22) 三种写法的 GCWR 极差 ≤ 1e-9×量级 | `gcwr()` 返回 spread |
+| S8 | 累计 `GQm` **不得**等于 `GQv + GQh`，须满足 `GQm = GQv + GQh − C_net` | `test_cumulative_gqm_is_not_sum_of_gqv_and_gqh` |
+| S9 | 库存关系 `Qm = Qv + Qh` 在初末时刻成立 | `inventory_identity_ok` |
+| S10 | 边界通量分解满足 `输出 − 输入 = Σ带符号通量` | `test_boundary_flux_split_matches_signed_sum` |
+
+> 实现：[`error_analysis.py`](experiments/tp_cloud_water/error_analysis.py)。
+> 该模块**不提供默认不确定度**——所有 σ 必须由调用方显式给定，
+> 防止把"没评估"静默变成"误差为零"。
+
 ## 五、可复现契约
 
 结论能复现，才够格叫结论。四个机制：
@@ -405,11 +530,32 @@ PYTHONPATH=src:. .venv/bin/python experiments/tp_cloud_water/plot.py \
 
 `--run-id` 省略时取 `run-<config_hash>`；**EDA 与制图必须使用同一个 run-id**，否则图配错场。
 
+### 路径 C：GCWR 收支模型（不依赖数据卷）
+
+`budget.py` 是纯代数层：输入各分项（kg），输出式 (10)–(22) 全部指标。
+它不诊断云场、不读 NetCDF，因此**可用合成数字立刻跑通并验收**；
+水凝物数据到位时只替换输入、不改模型结构。
+
+```python
+from experiments.tp_cloud_water import budget as B, error_analysis as E
+
+t = B.BudgetTerms(qv_init=..., qv_final=..., qh_init=..., qh_final=...,
+                  qv_in=..., qv_out=..., qh_in=..., qh_out=...,
+                  rain_kg=..., duration_s=30 * B.SECONDS_PER_DAY)
+rep = B.evaluate(t)                     # 全部指标一张表
+sig = E.summarize(rep, E.TermSigma(qh_final=2e9, qh_out=1e9))   # 误差预算 + 判定
+print(rep["gcwr_kg"], sig["gcwr_ci95_kg"], sig["verdict"], sig["dominant_source"])
+```
+
+**顺序不能颠倒**：先 `evaluate` 验 S7–S10，再看误差区间，最后才谈结论。
+若 S8（累计 `GQm ≠ GQv+GQh`）不成立，说明口径写错，后续所有数字作废。
+
 ### 验收
 
 ```bash
-PYTHONPATH=src:. .venv/bin/python -m pytest -q          # 合成链路 + 运行清单
+PYTHONPATH=src:. .venv/bin/python -m pytest -q          # 合成链路 + 运行清单 + 收支模型
 PYTHONPATH=src:. .venv/bin/python -m pytest -m real -q  # 真实卷（不在线自动 skip）
+PYTHONPATH=src:. .venv/bin/python -m pytest tests/test_cloud_water_budget.py -q  # 收支与误差 26 项
 .venv/bin/python scripts/dev/validate_real_eda.py       # 独立验收（对抗性）
 ```
 
@@ -429,6 +575,9 @@ PYTHONPATH=src:. .venv/bin/python -m pytest -m real -q  # 真实卷（不在线�
 experiments/tp_cloud_water/
   config.yaml      唯一配置入口（区域/年份/层带/阈值/时次）
   eda.py           数学原理实现：柱积分、RH、地形掩膜、面积加权、分年断点续跑
+  budget.py        云水资源收支模型：式(1)-(3)反算、(13)-(15)总量、
+                   (17)-(22)效率与 GCWR、(30)-(32)闭合残差
+  error_analysis.py GCWR 误差分析：一阶传播、口径因子、误差预算排序、判定
   plot.py          EDA 规律分析：剖面、高程分层、冰川对比、时间序列、摘要
   common.py        配置加载、catalog 索引、run 目录与 manifest 交互
 
@@ -440,7 +589,7 @@ scripts/dev/
 
 scripts/demo/      合成试验台生成器（不依赖外接盘）
 scripts/analysis/  实验命令行的薄包装
-tests/             合成链路、运行清单、真实卷（-m real）
+tests/             合成链路、运行清单、真实卷（-m real）、收支与误差（26 项）
 docs/img/          README 例图
 data/              实验产物（不入 Git，由 manifest 记录）
 ```
