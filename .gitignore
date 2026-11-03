@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# 实验产物与运行清单：不入 Git（由 manifest 与验收报告记录）
+data/

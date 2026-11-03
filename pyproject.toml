@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydroweave"
+version = "0.1.0"
+description = "Hydroweave: ERA5 云水资源科研实验与绘图层（可复现 run + 运行清单）"
+requires-python = ">=3.11"
+# 上游资产层 DBAS 钉在固定 commit：数据管理口径变化不会悄悄影响实验产物。
+# 本仓不管理数据卷，只通过它的 catalog 只读定位输入文件。
+dependencies = [
+    "dbas-core @ git+https://github.com/Neiyako/dbas-core.git@46b32f45de90bb9442df9c04e53c67b7c57b1c3a",
+    "netCDF4>=1.7",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "PyYAML>=6.0",
+    "xarray>=2024.1",
+    "matplotlib>=3.8",
+    "dask[array]>=2024.1",
+    "flox>=0.9",
+    "pyshp>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-q"
+markers = [
+    "real: 需要外接 ERA5 卷在线（/Volumes/Untitled）与已扫描的 DBAS catalog",
+]
