@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hydroweave"
 version = "0.1.0"
-description = "Hydroweave: ERA5 云水资源科研实验与绘图层（可复现 run + 运行清单）"
+description = "Hydroweave: 青藏高原云水资源实验体系（数学口径 · 误差分析 · EDA 规律 · 可复现 run）"
 requires-python = ">=3.11"
-# 上游资产层 DBAS 钉在固定 commit：数据管理口径变化不会悄悄影响实验产物。
-# 本仓不管理数据卷，只通过它的 catalog 只读定位输入文件。
+# 数据层 DBAS 钉在固定 commit：仅用于读取 catalog 结构定位输入文件，
+# 本仓的全部数学定义、误差标准与验收逻辑都在本仓内独立成立。
+# 本仓不管理数据卷，也不写 catalog。
 dependencies = [
     "dbas-core @ git+https://github.com/Neiyako/dbas-core.git@46b32f45de90bb9442df9c04e53c67b7c57b1c3a",
     "netCDF4>=1.7",
