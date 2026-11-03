@@ -6,3 +6,10 @@ __pycache__/
 
 # 实验产物与运行清单：不入 Git（由 manifest 与验收报告记录）
 data/
+
+# 构建/文档产物
+*.pdf
+build/
+dist/
+*.egg-info/
+.ruff_cache/

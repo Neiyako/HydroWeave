@@ -1,0 +1,157 @@
+name: CI
+
+# 三层验证，对应 README「三条命令验证不同层次」：
+#   lint  —— 代码质量（ruff）
+#   test  —— 机制正确性（pytest，合成数据，不碰外接卷）
+#   复现自检 —— 合成链路端到端：fixture → EDA → 绘图 → manifest
+#
+# 真实 ERA5 卷（2 TB 外接盘）不在 CI 中运行，`-m real` 的测试会自动 skip。
+# 这是有意为之：CI 证明「代码没坏」，结论可信度由本地 validate_real_eda.py 负责。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: python -m pip install --upgrade pip ruff
+
+      - name: Ruff check
+        run: ruff check . --output-format=github
+
+      # 格式检查仅告警不失败：本仓有大量手工对齐的中文注释，
+      # ruff format 的重排会降低可读性，因此不作为门禁。
+      - name: Ruff format (advisory)
+        continue-on-error: true
+        run: ruff format --check .
+
+  test:
+    name: Test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        # 不装 dbas-core：它在代码中只作为"包版本名"被记录，没有任何 import，
+        # 且是私有 git 依赖，装它会让 CI 依赖外部私有仓库的可用性。
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "numpy>=1.26" "pandas>=2.1" "PyYAML>=6.0" "xarray>=2024.1" \
+            "netCDF4>=1.7" "matplotlib>=3.8" "dask[array]>=2024.1" \
+            "flox>=0.9" "pyshp>=2.3" "pytest>=8.0" "ruff>=0.6"
+          python -m pip install -e . --no-deps
+
+      - name: Run unit tests
+        env:
+          PYTHONPATH: src:.
+        run: python -m pytest -q
+
+      - name: 收支与误差单元测试
+        env:
+          PYTHONPATH: src:.
+        run: python -m pytest tests/test_cloud_water_budget.py -q
+
+      # 真实卷测试在无外接盘环境会自动 skip；这里显式记录其状态，
+      # 避免把「跳过」误读成「通过」。
+      - name: 真实卷测试状态（预期 skip）
+        env:
+          PYTHONPATH: src:.
+        run: |
+          python -m pytest -m real -q -rs || true
+          echo "::notice::真实卷测试在 CI 中无外接盘，状态为 NOT_RUN（非通过）"
+
+  repro:
+    name: 合成链路自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "numpy>=1.26" "pandas>=2.1" "PyYAML>=6.0" "xarray>=2024.1" \
+            "netCDF4>=1.7" "matplotlib>=3.8" "dask[array]>=2024.1" \
+            "flox>=0.9" "pyshp>=2.3" "pytest>=8.0"
+          python -m pip install -e . --no-deps
+
+      - name: 生成合成试验台
+        run: python scripts/demo/make_tp_cloud_water_fixture.py /tmp/tp_fixture --days 3
+
+      - name: EDA
+        env:
+          PYTHONPATH: src:.
+        run: python -m experiments.tp_cloud_water.eda --config /tmp/tp_fixture/config.yaml --run-id ci
+
+      - name: 制图
+        env:
+          PYTHONPATH: src:.
+        run: python -m experiments.tp_cloud_water.plot --config /tmp/tp_fixture/config.yaml --run-id ci
+
+      - name: 校验产物齐全
+        run: |
+          set -eu
+          R=/tmp/tp_fixture/analysis/runs/ci
+          for f in manifest.json tables/tp_daily.csv tables/tp_monthly.csv \
+                   summary/tp_eda_summary.md figures/fig_maps_2010.png \
+                   figures/fig_annual_comparison.png figures/fig_glacier_elevation.png \
+                   figures/fig_crosssection.png; do
+            test -s "$R/$f" || { echo "缺少产物: $f"; exit 1; }
+          done
+          echo "产物齐全"
+
+      - name: 校验 manifest 记录了产物指纹
+        run: |
+          python - <<'PY'
+          import json, sys
+          m = json.load(open("/tmp/tp_fixture/analysis/runs/ci/manifest.json"))
+          arts = m.get("artifacts") or []
+          assert arts, "manifest 未记录任何产物"
+          assert all(a.get("sha256") for a in arts), "产物缺少 sha256"
+          assert m.get("config_hash"), "缺少 config_hash"
+          print(f"manifest OK: {len(arts)} 个产物已记录指纹")
+          PY
+
+      - name: 上传图件
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-figures
+          path: /tmp/tp_fixture/analysis/runs/ci/figures/*.png
+          if-no-files-found: warn
+          retention-days: 7

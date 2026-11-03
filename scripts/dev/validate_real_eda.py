@@ -23,9 +23,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import sqlite3
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import netCDF4
@@ -37,9 +36,10 @@ for _p in (ROOT / "src",):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-import dask  # noqa: E402
-from experiments.tp_cloud_water import eda  # noqa: E402
-from experiments.tp_cloud_water.common import catalog_index, load_config  # noqa: E402
+import dask
+
+from experiments.tp_cloud_water import eda
+from experiments.tp_cloud_water.common import catalog_index, load_config
 
 CONFIG_PATH = ROOT / "experiments" / "tp_cloud_water" / "config.yaml"
 RUN_ID = "real-2010"
@@ -208,8 +208,8 @@ def _check_s4(index) -> dict:
     rows, problems = [], []
     for date, lat, lon in probes:
         fields = _day_fields(index, date)
-        i = int(round((lat - eda.LAT_MIN) / 0.25))
-        j = int(round((lon - eda.LON_MIN) / 0.25))
+        i = round((lat - eda.LAT_MIN) / 0.25)
+        j = round((lon - eda.LON_MIN) / 0.25)
         actual = float(fields["pw"][i, j])
         expected = _manual_pw_column(index[date]["q"], lat, lon)
         rel = abs(actual - expected) / abs(expected) if expected else float("inf")
@@ -298,7 +298,7 @@ def _verdict(results: list[dict]) -> str:
 
 
 def _render(results, verdict, cfg, root, sample_dates) -> str:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
     lines = [
         "# 真实 ERA5 卷云水代理 EDA · 独立验收报告", "",
         f"- 生成时间：{now}",

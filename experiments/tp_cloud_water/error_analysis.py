@@ -17,8 +17,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from experiments.tp_cloud_water.budget import BudgetTerms, evaluate, net_condensation
-
+from experiments.tp_cloud_water.budget import BudgetTerms, evaluate
 
 # ------------------------------------------------------- 单项不确定度容器
 

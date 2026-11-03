@@ -25,22 +25,23 @@ import argparse
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
-import numpy as np                                     # noqa: E402
-import pandas as pd                                    # noqa: E402
-import shapefile                                       # noqa: E402
-import xarray as xr                                    # noqa: E402
-import matplotlib.pyplot as plt                        # noqa: E402
-from matplotlib.collections import LineCollection      # noqa: E402
-from matplotlib.colors import ListedColormap, Normalize  # noqa: E402
 
-from hydroweave.repro.manifest import config_hash, update_manifest  # noqa: E402
-from experiments.tp_cloud_water.common import (        # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import shapefile
+import xarray as xr
+from matplotlib.collections import LineCollection
+from matplotlib.colors import ListedColormap, Normalize
+
+from experiments.tp_cloud_water.common import (
     load_config,
     path_from_config,
     record_artifact,
     run_dir,
 )
+from hydroweave.repro.manifest import config_hash, update_manifest
 
 for fam in ("PingFang SC", "Heiti SC", "Hiragino Sans GB", "Arial Unicode MS"):
     matplotlib.rcParams["font.sans-serif"] = [fam, *matplotlib.rcParams["font.sans-serif"]]
@@ -60,7 +61,7 @@ def _runs(mask):
     if idx.size == 0:
         return []
     out, cur = [], [idx[0]]
-    for a, b in zip(idx[:-1], idx[1:]):
+    for a, b in zip(idx[:-1], idx[1:], strict=True):
         if b == a + 1:
             cur.append(b)
         else:
@@ -90,7 +91,7 @@ def basemap_lines(cache_dir: Path, shp_dir: Path):
             if allpts.ndim != 2 or allpts.shape[0] < 2:
                 continue
             bounds = list(sh.parts) + [len(allpts)]
-            for a, b in zip(bounds[:-1], bounds[1:]):
+            for a, b in zip(bounds[:-1], bounds[1:], strict=True):
                 pts = allpts[a:b]                 # 按 part 切分，避免跨环连线
                 if pts.shape[0] < 2:
                     continue
@@ -109,7 +110,7 @@ def add_basemap(ax, segs, kinds):
              "province": dict(color="0.45", lw=0.5, zorder=4),
              "river": dict(color="#2b6cb0", lw=0.7, alpha=0.8, zorder=4)}
     for k, st in style.items():
-        pts = [s for s, kk in zip(segs, kinds) if kk == k]
+        pts = [s for s, kk in zip(segs, kinds, strict=True) if kk == k]
         if pts:
             ax.add_collection(LineCollection(pts, **st))
 
@@ -202,7 +203,7 @@ def fig_glacier_elevation(ds, years, glacier, fig_dir: Path):
             years_x.append(y)
             bins = np.arange(0, 6500, 500)
             cen, val = [], []
-            for lo, hi in zip(bins[:-1], bins[1:]):
+            for lo, hi in zip(bins[:-1], bins[1:], strict=True):
                 s = (z >= lo) & (z < hi) & np.isfinite(v)
                 if s.sum() >= 30:
                     cen.append((lo + hi) / 2000.0)
@@ -237,7 +238,7 @@ def fig_timeseries(daily, fig_dir: Path):
     panels = [("pw_mm", "pw_glc", "可降水量 PW (mm)"),
               ("rh500_pct", "rh500_glc", "RH@500hPa (%)"),
               ("cfrac_pct", "cfrac_glc", "云频率代理 (%)")]
-    for ax, (a, b, lab) in zip(axes, panels):
+    for ax, (a, b, lab) in zip(axes, panels, strict=True):
         s = d.set_index("dt")
         for col, c, lb in ((a, "#457b9d", "高原整体（cos 纬度加权）"),
                            (b, "#d7263d", "冰川格点")):
@@ -266,7 +267,8 @@ def fig_crosssection(ds, years, fig_dir: Path):
     fig, axes = plt.subplots(2, 2, figsize=(13.2, 8.6), constrained_layout=True,
                              squeeze=False)
     im = None
-    for ax, y in zip(axes.ravel(), years):
+    # 年份不足 4 个时只填前几个面板，剩余面板稍后 axis('off')，故此处有意不要求等长
+    for ax, y in zip(axes.ravel(), years, strict=False):
         d = ds[y]
         months = [int(m) for m in d.month.values]
         sel = [months.index(m) for m in (6, 7, 8) if m in months]
@@ -344,7 +346,7 @@ def write_summary(ds, years, daily, monthly, glacier, problems, config, run_id: 
              f"时次 {config.get('synoptic_hours')} UTC 等权近似日均；",
              f"年份 {min(years)}–{max(years)}（该卷本身只覆盖暖季，并非全年）。", "",
              "## 一、为什么是代理指标（不是真云水）",
-             f"- 本卷气压层变量只有 `t/q/u/v`，**没有 clwc/ciwc/云水路径/总云量**；",
+             "- 本卷气压层变量只有 `t/q/u/v`，**没有 clwc/ciwc/云水路径/总云量**；",
              "  严格意义的云水资源无法直接绘制。",
              "- 采用三个只依赖 t、q 的量：",
              "  PW = ∫q d(-p)/g（可降水量，mm）；RH500（500 hPa 相对湿度）；",

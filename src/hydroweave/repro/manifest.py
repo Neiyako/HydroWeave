@@ -13,9 +13,10 @@ import platform
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from collections.abc import Iterable, Mapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 
 def _json_default(value: Any) -> str:
@@ -82,7 +83,7 @@ def package_versions(names: Iterable[str]) -> dict[str, str]:
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def atomic_write_text(path: str | Path, text: str) -> Path:
@@ -113,7 +114,7 @@ def load_json(path: str | Path) -> dict[str, Any]:
     with Path(path).open(encoding="utf-8") as handle:
         value = json.load(handle)
     if not isinstance(value, dict):
-        raise ValueError(f"运行清单必须是对象: {path}")
+        raise TypeError(f"运行清单必须是对象: {path}")
     return value
 
 

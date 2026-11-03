@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import json
-import subprocess
 
 import pytest
 
 from hydroweave.repro.manifest import (
     atomic_write_json,
-    atomic_write_text,
     canonical_json,
     config_hash,
     file_sha256,

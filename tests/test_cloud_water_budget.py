@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """收支模型与误差分析的单元测试（合成数字，不碰外接盘）。"""
 from __future__ import annotations
 

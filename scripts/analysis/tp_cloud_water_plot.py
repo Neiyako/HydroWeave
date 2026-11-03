@@ -14,7 +14,7 @@ for _path in (ROOT / "src",):
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
-from experiments.tp_cloud_water.plot import main  # noqa: E402
+from experiments.tp_cloud_water.plot import main
 
 if __name__ == "__main__":
     main()

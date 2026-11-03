@@ -21,8 +21,9 @@ def _env() -> dict[str, str]:
 
 
 def _run(args, cwd=ROOT):
+    # 刻意 check=False：调用方自己断言 returncode（含期望失败的情形）
     return subprocess.run([sys.executable, *args], cwd=cwd, env=_env(),
-                          capture_output=True, text=True, timeout=300)
+                          capture_output=True, text=True, timeout=300, check=False)
 
 
 def test_fixture_eda_resume_plot(tmp_path):

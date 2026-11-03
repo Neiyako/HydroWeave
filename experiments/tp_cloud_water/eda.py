@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import time
 from pathlib import Path
 from typing import Any
 
@@ -17,9 +16,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from hydroweave.repro.manifest import atomic_write_text, config_hash, update_manifest
 from experiments.tp_cloud_water.common import (
-    ROOT,
     catalog_index,
     finish_manifest,
     load_config,
@@ -29,6 +26,7 @@ from experiments.tp_cloud_water.common import (
     record_artifact,
     run_dir,
 )
+from hydroweave.repro.manifest import atomic_write_text, config_hash, update_manifest
 
 LAT_MIN, LAT_MAX, LON_MIN, LON_MAX = 25.0, 40.0, 70.0, 105.0
 HOURS = (0, 6, 12, 18)
@@ -180,14 +178,14 @@ def process_year(year: int, index: dict[str, dict[str, str]], glacier: np.ndarra
                 graphs.append((q, t))
                 graph_dates.append(date)
                 opened.extend((q_ds, t_ds))
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 —— 单日打开失败只记录，不中断整年
                 problems.append({"date": date, "error": f"open {type(exc).__name__}: {exc}"})
         if not graphs:
             continue
         try:
             result = dask.compute(*[item for pair in graphs for item in pair],
                                   scheduler="threads", num_workers=WORKERS)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 —— 整批读取失败也要逐日落账，不能吞掉
             problems.extend({"date": date, "error": f"read {type(exc).__name__}: {exc}"}
                             for date in graph_dates)
             continue
@@ -205,9 +203,11 @@ def process_year(year: int, index: dict[str, dict[str, str]], glacier: np.ndarra
                 weights = weights / weights.sum()
                 non_glacier = ~glacier
 
-                def wm(array, mask=None):
+                def wm(array, mask=None, _w=weights):
+                    # _w 显式绑定当前迭代的权重：闭包不捕获循环变量，避免后续迭代
+                    # 重新赋值后读到别的日期权重（B023 所指的隐患）
                     valid = np.isfinite(array) if mask is None else mask & np.isfinite(array)
-                    return float((array[valid] * weights[valid]).sum() / weights[valid].sum()) if valid.any() else float("nan")
+                    return float((array[valid] * _w[valid]).sum() / _w[valid].sum()) if valid.any() else float("nan")
 
                 daily_year.append({
                     "year": year, "date": date, "month": int(date[4:6]),
@@ -232,7 +232,7 @@ def process_year(year: int, index: dict[str, dict[str, str]], glacier: np.ndarra
                     bucket["c"][key] += valid
                 bucket["z"] += np.where(np.isfinite(fields["rh_z"]), fields["rh_z"], 0.0)
                 bucket["zc"] += np.isfinite(fields["rh_z"])
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 —— 单日计算异常记录后继续下一天
                 problems.append({"date": date, "error": f"calc {type(exc).__name__}: {exc}"})
         if daily_year:
             done = min(b0 + BATCH, len(dates))
@@ -329,7 +329,7 @@ def main() -> None:
                 year, index, glacier, config, root, manifest_path, manifest)
             if problems:
                 print(f"[{year}] 完成但有 {len(problems)} 个问题", flush=True)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 —— 年度失败写进 manifest 再上抛，保留现场
             manifest = update_manifest(manifest_path, status="failed",
                                        failed_year=year,
                                        error=f"{type(exc).__name__}: {exc}")

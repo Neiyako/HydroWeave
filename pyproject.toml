@@ -24,10 +24,59 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# 只检查源码、脚本与测试；文档与产物不参与
+extend-exclude = ["data", "docs"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = false   # 不动 README/docstring 里的示例代码
+
+[tool.ruff.lint]
+# 选择有实质意义的规则：语法错误、import、bug 风险、命名、简化、现代写法。
+# 刻意不启用纯格式类规则（如 ISC004/RUF007/C4xx），它们不改行为、只会淹没真问题。
+select = [
+    "E", "F",      # pycodestyle 基础 + pyflakes
+    "I",           # import 排序
+    "UP",          # pyupgrade
+    "B", "BLE",    # bugbear + 盲式异常
+    "C4",          # 推导式简化
+    "SIM",         # 可简化写法
+    "RUF",         # ruff 自有规则
+    "PL",          # pylint 子集
+    "TRY",         # tryceratops 异常用法
+    "DTZ",         # 时区安全
+    "NPY",         # numpy 用法
+    "PIE",         # 杂项
+    "RET",         # return 简化
+    "ARG",         # 未使用参数
+]
+ignore = [
+    "E501",    # 行长交给 formatter；本仓有大量长公式与中文注释
+    "C408",    # dict() 调用可读性取舍
+    "C401",    # 生成器/推导式取舍
+    "RUF007",  # zip 与 pairwise 等价，无行为差异
+    "PLC0206", # 显式遍历 items 属风格
+    "RUF001", "RUF002", "RUF003",  # 中文全角标点（（）℃ 等）被误判为「歧义字符」
+    "TRY003",  # 科学计算中就地构造异常消息更可读
+    "PLW0603", # configure() 用 global 投影配置，是刻意的模块级配置模式
+    "PLC0415", # 少数函数内导入用于避免可选依赖在模块导入时失败
+    "ARG001", "ARG002",  # matplotlib/pytest 回调签名固定
+    "RET504",  # return 变量便于调试
+    "PLR0912", "PLR0913", "PLR0915", "PLR2004", "PLR0917",  # 绘图/验收函数天然多分支
+    "E402",    # 脚本需先插入 sys.path 再导入本仓模块，导入必然在顶层之后
+    "SIM108",  # 三元表达式在含注释/多步计算时可读性更差
+    "SIM300",  # 区间断言写 0 <= x 更贴近数学表达
+    "TRY301",  # 在循环内就地上抛并附带上下文更直观
+    "RUF005",  # 列表拼接与解包写法等价
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,7 +1,6 @@
 """云水代理实验的配置、输入索引和运行目录共用代码。"""
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,6 @@ from hydroweave.repro.manifest import (
     input_fingerprint,
     load_json,
     new_manifest,
-    package_versions,
     update_manifest,
 )
 
@@ -29,7 +27,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
         source = ROOT / source
     raw = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
     if not isinstance(raw, dict):
-        raise ValueError(f"实验配置必须是映射: {source}")
+        raise TypeError(f"实验配置必须是映射: {source}")
     raw["_config_path"] = str(source)
     return raw
 

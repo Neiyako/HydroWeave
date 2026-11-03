@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiments.tp_cloud_water import eda  # noqa: E402
-from experiments.tp_cloud_water.common import catalog_index, load_config  # noqa: E402
+from experiments.tp_cloud_water import eda
+from experiments.tp_cloud_water.common import catalog_index, load_config
 
 pytestmark = pytest.mark.real
 
@@ -79,7 +79,7 @@ def test_catalog_covers_full_season():
 
 
 def test_catalog_files_exist_on_disk_with_matching_size():
-    _, index, rows, root = _real_config()
+    _, _index, rows, root = _real_config()
     missing = []
     size_mismatch = []
     for row in rows[:200]:                 # 抽查 200 个文件，避免每次全盘 stat
@@ -115,7 +115,7 @@ def real_day():
 
 
 def test_single_day_fields_are_physically_plausible(real_day):
-    fields, q, _ = real_day
+    fields, _q, _ = real_day
     pw = fields["pw"]
     lat = np.linspace(eda.LAT_MIN, eda.LAT_MAX, pw.shape[0])
     lon = np.linspace(eda.LON_MIN, eda.LON_MAX, pw.shape[1])
@@ -124,9 +124,9 @@ def test_single_day_fields_are_physically_plausible(real_day):
     assert 0 < float(np.nanmean(pw)) < 80, "TP 夏季 PW 应在 0–80 mm"
     assert float(np.nanmax(pw)) < 150
     assert float(np.nanmean(fields["rh500"])) < 300.0     # 代码 clip 上限
-    assert 0.0 <= float(np.nanmin(fields["rh500"]))
+    assert float(np.nanmin(fields["rh500"])) >= 0.0
     cfrac = fields["cfrac"]
-    assert 0.0 <= float(np.nanmin(cfrac)) and float(np.nanmax(cfrac)) <= 1.0
+    assert float(np.nanmin(cfrac)) >= 0.0 and float(np.nanmax(cfrac)) <= 1.0
     assert 0.05 < float(np.nanmean(cfrac)) < 0.6, "单日 CFRAC 量级异常"
     surf_p = fields["surf_p"]
     # 最低格点约 5000 m（~540 hPa）；无填充连段的低海拔列取到最底层 1000 hPa。
@@ -145,10 +145,8 @@ def _manual_pw_column(q_path: str, lat: float, lon: float) -> float:
     try:
         lat_v = ds["latitude"][:]
         lon_v = ds["longitude"][:]
-        if lat_v[0] < lat_v[-1]:                       # 升序也要能选到目标点
-            i = int(np.argmin(np.abs(lat_v - lat)))
-        else:
-            i = int(np.argmin(np.abs(lat_v - lat)))
+        # argmin(|lat_v - lat|) 对升序与降序网格同样正确，无需分支
+        i = int(np.argmin(np.abs(lat_v - lat)))
         j = int(np.argmin(np.abs(lon_v - lon)))
         level_hpa = ds["level"][:].astype("float64")
         tvals = netCDF4.num2date(ds["time"][:], ds["time"].units,
@@ -182,8 +180,8 @@ def test_independent_pw_recomputation(real_day):
     _, index, _, _ = _real_config()
     date = "20100715"
     # 实验网格：lat 25→40、lon 70→105 升序；取 35°N/75°E 对应的格点
-    i = int(round((35.0 - eda.LAT_MIN) / 0.25))
-    j = int(round((75.0 - eda.LON_MIN) / 0.25))
+    i = round((35.0 - eda.LAT_MIN) / 0.25)
+    j = round((75.0 - eda.LON_MIN) / 0.25)
     expected = _manual_pw_column(index[date]["q"], 35.0, 75.0)
     actual = float(fields["pw"][i, j])
     assert abs(actual - expected) <= 0.01 * abs(expected) + 0.05, (
