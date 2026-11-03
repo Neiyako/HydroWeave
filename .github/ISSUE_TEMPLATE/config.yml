@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📘 先读上手文档
+    url: https://github.com/Neiyako/HydroWeave/blob/main/docs/ONBOARDING.md
+    about: 公式总账、误差分析、实验与绘图规范，大部分问题在这里已有答案
+  - name: 📐 设计说明
+    url: https://github.com/Neiyako/HydroWeave/blob/main/docs/DESIGN.md
+    about: 每个数学口径"为什么这样取"以及真实卷实测结论

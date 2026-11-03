@@ -1,0 +1,63 @@
+cff-version: 1.2.0
+message: "If you use Hydroweave in your research, please cite it as below."
+title: "Hydroweave: A Tibetan Plateau Cloud Water Resources Toolkit"
+abstract: >-
+  Hydroweave is an experiment framework for Tibetan Plateau cloud water resources.
+  It provides (1) proxy indicators computable from temperature and specific humidity
+  alone (precipitable water, mid-level saturation, cloud-frequency proxy), (2) a complete
+  water-substance budget model including gross cloud water retention (GCWR), precipitation
+  efficiency and renewal periods, (3) a three-layer error analysis with first-order
+  propagation and explicit falsifiability verdicts, and (4) a reproducibility contract
+  with per-artifact SHA-256 fingerprints and independent adversarial acceptance.
+  The proxy chain is validated on a real 2010-2013 ERA5 volume (736 warm-season days,
+  10 hard acceptance criteria, single-column recomputation relative error 0.0000%);
+  the budget model is regression-tested against published national-scale values.
+version: 1.0.0
+date-released: 2026-11-03
+license: MIT
+repository-code: "https://github.com/Neiyako/HydroWeave"
+url: "https://github.com/Neiyako/HydroWeave"
+keywords:
+  - tibetan plateau
+  - cloud water resources
+  - precipitable water
+  - water budget
+  - GCWR
+  - error analysis
+  - reproducibility
+  - atmospheric science
+  - hydrology
+authors:
+  - family-names: "Neiyako"
+    given-names: "qiu-yuyi"
+    email: "Neiyako@163.com"
+    alias: "qiu-yuyi"
+references:
+  - type: thesis
+    title: "中国空中云水资源和降水效率的评估研究"
+    title-en: "Evaluation of China's airborne cloud water resources and precipitation efficiency"
+    authors:
+      - family-names: "蔡"
+        given-names: "淼"
+        name-particle: ""
+    note: >-
+      Primary source for the water budget model (Eq. 1-32) implemented in
+      experiments/tp_cloud_water/budget.py, Chapter 2.
+    year: 2011
+  - type: article
+    title: "青藏高原主要流域的降水水汽来源"
+    title-en: "Moisture sources of precipitation in major river basins of the Tibetan Plateau"
+    journal: "Scientia Sinica Terrae (中国科学: 地球科学)"
+    volume: 52
+    issue: 7
+    start: 1328
+    end: 1344
+    year: 2022
+    doi: "10.1360/SSTe-2021-0217"
+    authors:
+      - family-names: "李"
+        given-names: "颖"
+      - family-names: "苏"
+        given-names: "凤阁"
+      - family-names: "汤"
+        given-names: "秋鸿"

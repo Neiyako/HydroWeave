@@ -1,0 +1,61 @@
+name: 🔬 科学问题 / 口径质疑
+description: 对公式口径、误差边界或研究结论提出质疑或讨论
+title: "[Science] "
+labels: ["discussion", "scientific"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本类 Issue 用于讨论**科学内容本身**：公式是否正确、误差边界是否合理、
+        结论是否成立。这是本项目最欢迎的一类反馈。
+
+        请**基于推导与证据**，而非立场或权威。
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: 议题类型
+      options:
+        - 公式或口径可能有误
+        - 误差量化方式有问题
+        - 结论的证据强度被高估
+        - 应当补充的物理效应
+        - 与文献结果不一致
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: 涉及位置
+      description: 具体到文件与公式编号，例如 `budget.py` 式 (21)、README §4.2
+      placeholder: experiments/tp_cloud_water/budget.py 式 (22)
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: 问题描述与推导
+      description: 请给出你的推导、反例或文献依据
+      placeholder: |
+        当前实现在 XXX 处假设了 A，但论文 B 指出应为 C，推导如下……
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 对结论的影响
+      description: 如果这个问题成立，哪些结论会受影响？影响方向与量级？
+      placeholder: |
+        影响 GCWR 的量级，方向为高估/低估，估计幅度约 xx%
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 建议的修正方式
+      description: 可留空

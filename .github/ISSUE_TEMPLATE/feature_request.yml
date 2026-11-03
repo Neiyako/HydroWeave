@@ -1,0 +1,42 @@
+name: ✨ 功能建议
+description: 建议新增功能、实验或改进
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述动机，而非只给方案
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议的方案
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 涉及范围
+      options:
+        - 新增数学口径 / 物理量
+        - 新增或改进误差分析方法
+        - 新增图件
+        - 性能优化
+        - 工程 / CI / 可复现
+        - 文档
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: data
+    attributes:
+      label: 数据依赖
+      options:
+        - label: 该功能不依赖新数据（现有 t/q/u/v 即可）
+        - label: 该功能需要云水变量（clwc/ciwc/云量）
+        - label: 该功能需要其他变量（请在方案中说明）

@@ -126,6 +126,10 @@ Hydroweave/
 │
 ├── README.md                    中文说明（本文件）
 ├── README.en.md                 English documentation
+├── CHANGELOG.md                 版本变更记录（Keep a Changelog 格式）
+├── CONTRIBUTING.md              贡献指南
+├── CODE_OF_CONDUCT.md           行为准则
+├── CITATION.cff                 学术引用信息
 ├── pyproject.toml               依赖声明 + ruff + pytest 配置
 ├── LICENSE                      MIT
 │
@@ -156,7 +160,10 @@ Hydroweave/
 │   ├── test_tp_cloud_water_experiment.py     合成链路端到端（3）
 │   └── test_tp_cloud_water_real.py           真实卷契约（9，需外接盘）
 │
-├── .github/workflows/ci.yml     GitHub Actions：lint + test + repro
+├── .github/
+│   ├── workflows/ci.yml         GitHub Actions：lint + test + repro
+│   ├── ISSUE_TEMPLATE/          Issue 模板（Bug / 科学问题 / 功能建议）
+│   └── PULL_REQUEST_TEMPLATE.md
 │
 └── data/                        实验产物（不入 Git，由 manifest 记录）
     └── analysis/tp_cloud_water/runs/<run_id>/
@@ -419,7 +426,13 @@ CI 中**不运行**真实卷测试（需 2 TB 外接盘），`-m real` 会自动
 
 ## 🤝 贡献
 
-欢迎提交 Issue 与 Pull Request。提交前请确保：
+欢迎提交 Issue 与 Pull Request！
+
+- 详细流程见 [CONTRIBUTING.md](CONTRIBUTING.md)
+- 参与即表示同意遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **对科学结论的质疑是最受欢迎的反馈** —— 请用 [科学问题模板](https://github.com/Neiyako/HydroWeave/issues/new/choose) 并附上推导
+
+提交前请确保：
 
 ```bash
 ruff check .                             # 静态检查通过
@@ -441,6 +454,26 @@ PYTHONPATH=src:. python3 -m pytest -q     # 测试通过
 2. **李颖, 苏凤阁, 汤秋鸿, 等**. 青藏高原主要流域的降水水汽来源 [J]. 中国科学: 地球科学, 2022, 52(7): 1328–1344.
    [DOI: 10.1360/SSTe-2021-0217](https://doi.org/10.1360/SSTe-2021-0217)
    *水汽来源追踪，与 GCWR 属不同框架，不代入收支公式。*
+
+---
+
+## 📌 引用
+
+如果 Hydroweave 对你的研究有帮助，请引用：
+
+```bibtex
+@software{hydroweave2026,
+  title   = {Hydroweave: A Tibetan Plateau Cloud Water Resources Toolkit},
+  author  = {Neiyako},
+  year    = {2026},
+  version = {1.0.0},
+  url     = {https://github.com/Neiyako/HydroWeave},
+  license = {MIT}
+}
+```
+
+引用格式由 [CITATION.cff](CITATION.cff) 提供，GitHub 会自动生成 APA / BibTeX。
+若引用了具体的收支模型公式，请同时引用上文参考文献 1。
 
 ---
 

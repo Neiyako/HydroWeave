@@ -4,9 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hydroweave"
-version = "0.1.0"
+version = "1.0.0"
 description = "Hydroweave: 青藏高原云水资源实验体系（数学口径 · 误差分析 · EDA 规律 · 可复现 run）"
 requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+keywords = [
+    "tibetan-plateau", "cloud-water-resources", "atmospheric-science",
+    "hydrology", "meteorology", "era5", "netcdf", "xarray",
+    "reproducibility", "uncertainty-analysis", "scientific-computing",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
 # 数据层 DBAS 钉在固定 commit：仅用于读取 catalog 结构定位输入文件，
 # 本仓的全部数学定义、误差标准与验收逻辑都在本仓内独立成立。
 # 本仓不管理数据卷，也不写 catalog。
@@ -22,6 +41,14 @@ dependencies = [
     "flox>=0.9",
     "pyshp>=2.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Neiyako/HydroWeave"
+Documentation = "https://github.com/Neiyako/HydroWeave/blob/main/docs/ONBOARDING.md"
+Design = "https://github.com/Neiyako/HydroWeave/blob/main/docs/DESIGN.md"
+Changelog = "https://github.com/Neiyako/HydroWeave/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Neiyako/HydroWeave/issues"
+
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]

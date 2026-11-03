@@ -132,8 +132,12 @@ Implemented in **Python (≥3.11)**, oriented toward scientific computing and re
 ```text
 Hydroweave/
 │
-├── README.md                    Chinese documentation (this file's Chinese counterpart)
+├── README.md                    Chinese documentation
 ├── README.en.md                 English documentation (this file)
+├── CHANGELOG.md                 Version history (Keep a Changelog format)
+├── CONTRIBUTING.md              Contribution guidelines
+├── CODE_OF_CONDUCT.md           Code of Conduct
+├── CITATION.cff                 Citation metadata
 ├── pyproject.toml               Dependencies + ruff + pytest configuration
 ├── LICENSE                      MIT
 │
@@ -164,7 +168,10 @@ Hydroweave/
 │   ├── test_tp_cloud_water_experiment.py     Synthetic pipeline end-to-end (3)
 │   └── test_tp_cloud_water_real.py           Real-volume contract (9, needs external drive)
 │
-├── .github/workflows/ci.yml     GitHub Actions: lint + test + repro
+├── .github/
+│   ├── workflows/ci.yml         GitHub Actions: lint + test + repro
+│   ├── ISSUE_TEMPLATE/          Issue templates (bug / science / feature)
+│   └── PULL_REQUEST_TEMPLATE.md
 │
 └── data/                        Artifacts (not in Git; recorded by manifest)
     └── analysis/tp_cloud_water/runs/<run_id>/
@@ -435,7 +442,14 @@ automatically and is explicitly recorded as **NOT_RUN** — **skipped is not pas
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. Before submitting, make sure:
+Issues and pull requests are welcome!
+
+- Full process: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Participation implies agreement with [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **Challenges to scientific conclusions are the most welcome feedback** — please use the
+  [science discussion template](https://github.com/Neiyako/HydroWeave/issues/new/choose) with your derivation
+
+Before submitting, make sure:
 
 ```bash
 ruff check .                             # static analysis passes
@@ -461,6 +475,26 @@ an equation to close.
    of the Tibetan Plateau [J]. *Scientia Sinica Terrae*, 2022, 52(7): 1328–1344.
    [DOI: 10.1360/SSTe-2021-0217](https://doi.org/10.1360/SSTe-2021-0217)
    *Moisture source tracking — a different framework from GCWR; not substituted into the budget equations.*
+
+---
+
+## 📌 Citation
+
+If Hydroweave helps your research, please cite:
+
+```bibtex
+@software{hydroweave2026,
+  title   = {Hydroweave: A Tibetan Plateau Cloud Water Resources Toolkit},
+  author  = {Neiyako},
+  year    = {2026},
+  version = {1.0.0},
+  url     = {https://github.com/Neiyako/HydroWeave},
+  license = {MIT}
+}
+```
+
+Citation metadata is provided via [CITATION.cff](CITATION.cff); GitHub generates APA / BibTeX
+automatically. If you use specific budget-model formulas, please also cite reference 1 above.
 
 ---
 
