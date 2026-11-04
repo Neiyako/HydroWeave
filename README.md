@@ -356,6 +356,30 @@ GCWR = Qh,终 + Qh,出
 **绘图规范**：固定三色板、色标跨年共用、1%–99% 分位定界、`aspect=1/cos φ` 投影校正、
 冰川金色叠加、地形以下不画、DPI 130。
 
+### 真实 `clwc/ciwc` 云水柱含量（三端 e2e 实测，2026-11-04）
+
+输入不是 t/q 代理，而是真实 ERA5 云水混合比：经 ResearchDataHub 交付 → DBAS catalog →
+本仓 `experiments/cloud_water_strict/` 计算（`run-id=real-catalog-20240101`，
+2024-01-01 00Z，300/400/500 hPa，青藏高原 25–40°N/70–105°E）。
+
+![液水柱含量场](docs/img/fig_clwc_ciwc_lwp.png)
+
+![冰水柱含量场](docs/img/fig_clwc_ciwc_iwp.png)
+
+LWP = ∫(clwc/g)dp、IWP = ∫(ciwc/g)dp（气压层中点梯形积分，cosφ 面积加权）：
+本样本冰多液少（IWP 区域平均 2.18 g·m⁻²，LWP 0.11 g·m⁻²），与高原对流层中高层冬季一致。
+
+![clwc/ciwc 垂直剖面](docs/img/fig_clwc_ciwc_profile.png)
+
+模型自检（式 (20)(21)(22) 恒等 + 常数场解析解 + 0.1% 偏置负控制）：
+
+![GCWR 恒等式残差](docs/img/fig_gcwr_identity_check.png)
+
+**边界必须一起读**：以上是**部分列**（覆盖 200 hPa，占名义整列 20%）的单时次快照，
+不是整柱 LWP/IWP，不能外推气候态；整体判定 `INSUFFICIENT_EVIDENCE`（恒等式/积分权重/
+单位/部分列口径 4 项 PASS；GCWR 收支闭合因缺 P/E/边界通量 NOT_RUN）。详见
+[`docs/CLOUD_WATER_VERIFICATION.md`](docs/CLOUD_WATER_VERIFICATION.md)。
+
 ---
 
 ## ✅ 已得到的结论

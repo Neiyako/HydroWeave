@@ -371,6 +371,32 @@ GCWR = Qh,final + Qh,out
 bounds, `aspect = 1/cos φ` projection correction, gold glacier overlay, nothing plotted below terrain,
 DPI 130.
 
+### Real `clwc/ciwc` cloud water columns (three-repo e2e, 2026-11-04)
+
+Real ERA5 cloud-water mixing ratios, delivered through ResearchDataHub → DBAS catalog →
+`experiments/cloud_water_strict/` (`run-id=real-catalog-20240101`, 2024-01-01 00Z,
+300/400/500 hPa, Tibetan Plateau 25–40°N/70–105°E).
+
+![Liquid water path field](docs/img/fig_clwc_ciwc_lwp.png)
+
+![Ice water path field](docs/img/fig_clwc_ciwc_iwp.png)
+
+LWP = ∫(clwc/g)dp, IWP = ∫(ciwc/g)dp (layer-midpoint trapezoid, cosφ area weighting):
+ice dominates in this sample (area-mean IWP 2.18 g·m⁻² vs LWP 0.11 g·m⁻²), consistent with
+the mid/upper troposphere over the plateau in winter.
+
+![clwc/ciwc vertical profile](docs/img/fig_clwc_ciwc_profile.png)
+
+Model self-check (identities (20)(21)(22), analytic column integral, 0.1% negative control):
+
+![GCWR identity residual](docs/img/fig_gcwr_identity_check.png)
+
+**Read the caveat with the figures**: this is a single-time, **partial column** (200 hPa of the
+nominal 1000 hPa column, no extrapolation), not a full-column LWP/IWP and not a climatology.
+Overall verdict is `INSUFFICIENT_EVIDENCE` (identity/integration/units/partial-column: PASS;
+GCWR budget closure: NOT_RUN, missing P/E/boundary fluxes). See
+[`docs/CLOUD_WATER_VERIFICATION.md`](docs/CLOUD_WATER_VERIFICATION.md).
+
 ---
 
 ## ✅ Findings

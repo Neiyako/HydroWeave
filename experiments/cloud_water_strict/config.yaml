@@ -1,0 +1,40 @@
+# cloud_water_strict 可复现实验配置；相对路径均相对 Hydroweave 项目根目录。
+#
+# 默认指向本机 DBAS catalog（真实数据由 DBAS 导入后带 dataset_id=era5_cloud_water）。
+# 跑合成 fixture 时用脚本生成的临时 config.yaml 覆盖本文件，不修改本文件。
+experiment: cloud_water_strict
+catalog: /Users/apple/Desktop/era5数据dbas/data/catalog.db
+volume_id: downloads
+dataset_id: era5_cloud_water
+
+variables:
+  liquid: clwc
+  ice: ciwc
+
+region:
+  lat_min: 25.0
+  lat_max: 40.0
+  lon_min: 70.0
+  lon_max: 105.0
+
+pressure:
+  # 「整列」的名义范围，用于判定 partial_column；ERA5 完整气压层为 1–1000 hPa。
+  full_column_hpa: [1.0, 1000.0]
+  # 判定 partial_column 的容差（hPa）：覆盖厚度差小于该值才视为整列。
+  partial_tolerance_hpa: 1.0
+  # null = 从气压层坐标的 units 属性读取（ERA5 为 hPa）；数据缺 units 时才显式填 hPa/Pa。
+  units: null
+
+time:
+  # 单时次样本默认取第一个时次；多时次会在 stats 中记录总数与所选索引。
+  index: 0
+
+constants:
+  g_m_s2: 9.80665
+  earth_radius_m: 6371000.0
+
+# 显式覆盖：仅用于 RDH 交付链未完成时的 interim 本地真实文件；正式 run 留空。
+# 用 --input-file 也可临时覆盖。填了本项时报告会标注 catalog_imported=false。
+input_file: null
+
+output_dir: data/analysis/cloud_water_strict
