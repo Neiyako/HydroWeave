@@ -349,6 +349,27 @@ GCWR = Qh,final + Qh,out
 
 ---
 
+## 🎨 Figure standard (frozen 2026-11-12, repo-wide)
+
+| Item | Rule |
+|---|---|
+| Canvas | Nature two-column **180 mm**, 7 pt body text, bold lowercase panel letters, horizontal colour bars under panels |
+| Projection | **Albers equal-area conic** (central meridian 95°E, standard parallels 25°/47°N) |
+| Basemap | Natural Earth 50 m coastlines/rivers/lakes/borders + 1:4M provincial borders + **GTOPO30 hillshade** |
+| Palette | cmcrameri perceptually uniform maps (batlow / roma / vik), logarithmic colour scale, zero values left transparent |
+| Grid | 0.25° field → **0.025° interpolation + Gaussian smoothing + faint fractal texture** (kills the mosaic look); domain edges fade out with alpha |
+| Text | Figure text is English only (the strict pipeline font has no CJK glyphs); Chinese counterparts live in `summary.json` |
+| Single renderer | `experiments/figure_studio/` — real-data and synthetic pipelines **share one renderer** |
+
+Two hard rules: (1) synthetic data validates figure style only and is never presented as an
+observation; (2) when fewer than 50 % of grid cells are valid, plot grid-cell markers instead of
+interpolating a continuous field.
+
+```bash
+# synthetic data + journal-grade figures (spatial / vertical / error / synoptic)
+PYTHONPATH=. python scripts/analysis/figure_studio_demo.py --run-id sim-20240715
+```
+
 ## 🗺️ Example Figures
 
 ### Interannual comparison (shared colour scale)

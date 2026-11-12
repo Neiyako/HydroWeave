@@ -40,6 +40,9 @@ dependencies = [
     "dask[array]>=2024.1",
     "flox>=0.9",
     "pyshp>=2.3",
+    # 期刊级图件：Albers 投影底图 + 感知均匀色表（真实链路与仿真链路共用）
+    "cartopy>=0.24",
+    "cmcrameri>=1.8",
 ]
 
 [project.urls]

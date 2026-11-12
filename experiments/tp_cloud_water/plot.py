@@ -35,6 +35,8 @@ import xarray as xr
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, Normalize
 
+from experiments.figure_studio import figures as studio
+from experiments.figure_studio import style as studio_style
 from experiments.tp_cloud_water.common import (
     load_config,
     path_from_config,
@@ -43,15 +45,24 @@ from experiments.tp_cloud_water.common import (
 )
 from hydroweave.repro.manifest import config_hash, update_manifest
 
+# 与 figure_studio 同一套视觉基线（Nature 双栏 180 mm 规范），再补中文��体回退。
+studio_style.use_nature_style()
 for fam in ("PingFang SC", "Heiti SC", "Hiragino Sans GB", "Arial Unicode MS"):
     matplotlib.rcParams["font.sans-serif"] = [fam, *matplotlib.rcParams["font.sans-serif"]]
 matplotlib.rcParams["axes.unicode_minus"] = False
+matplotlib.rcParams["font.size"] = 8.0
+matplotlib.rcParams["axes.labelsize"] = 8.0
+matplotlib.rcParams["axes.titlesize"] = 8.5
+matplotlib.rcParams["legend.fontsize"] = 7.5
+matplotlib.rcParams["xtick.labelsize"] = 7.0
+matplotlib.rcParams["ytick.labelsize"] = 7.0
+matplotlib.rcParams["savefig.dpi"] = 300
 
 MONTHS = [5, 6, 7, 8, 9, 10]
 MLAB = {5: "5月 May", 6: "6月 Jun", 7: "7月 Jul", 8: "8月 Aug", 9: "9月 Sep", 10: "10月 Oct"}
-SPEC = {"pw": ("可降水量 PW (mm)", "viridis"),
-        "rh500": ("500 hPa 相对湿度 (%)", "YlGnBu"),
-        "cfrac": ("云频率代理：100–500 hPa 中 RH≥80% 层占比", "magma")}
+SPEC = {"pw": ("可降水量 PW (mm)", studio.CMAP_LIQUID),
+        "rh500": ("500 hPa 相对湿度 (%)", plt.get_cmap("Blues")),
+        "cfrac": ("云频率代理：100–500 hPa 中 RH≥80% 层占比", studio.CMAP_ICE)}
 DPI = 130
 
 
@@ -106,27 +117,27 @@ def basemap_lines(cache_dir: Path, shp_dir: Path):
 
 
 def add_basemap(ax, segs, kinds):
-    style = {"border": dict(color="0.2", lw=0.9, zorder=5),
-             "province": dict(color="0.45", lw=0.5, zorder=4),
-             "river": dict(color="#2b6cb0", lw=0.7, alpha=0.8, zorder=4)}
-    for k, st in style.items():
+    """旧版 1:4M 矢量底图（保留给非 cartopy 的旧调用）。"""
+    styles = {"border": dict(color="0.2", lw=0.9, zorder=5),
+              "province": dict(color="0.45", lw=0.5, zorder=4),
+              "river": dict(color="#2b6cb0", lw=0.7, alpha=0.8, zorder=4)}
+    for k, st in styles.items():
         pts = [s for s, kk in zip(segs, kinds, strict=True) if kk == k]
         if pts:
             ax.add_collection(LineCollection(pts, **st))
 
 
 def panel(ax, field, lat, lon, norm, cmap, glacier, segs, kinds):
-    ax.set_facecolor("0.88")
-    ax.pcolormesh(lon, lat, field, cmap=cmap, norm=norm, shading="auto", zorder=1)
+    """期刊规格地图面板：Albers 投影 + 山体阴影 + Natural Earth 底图 + 冰川格点。"""
+    grid = studio.grid_for(lat, lon)
+    studio.decorate_map_axis(ax, grid, shade_alpha=0.18, labels=False)
+    ax.pcolormesh(lon, lat, field, cmap=cmap, norm=norm, shading="auto", zorder=1.8,
+                  transform=studio.PLATE, rasterized=True)
     g = np.ma.masked_where(~glacier, glacier.astype(float))
     ax.pcolormesh(lon, lat, g, cmap=ListedColormap(["none", "#ffd166"]),
-                  norm=Normalize(0, 1), shading="auto", zorder=2)
-    add_basemap(ax, segs, kinds)
-    ax.set_xlim(float(lon[0]), float(lon[-1]))
-    ax.set_ylim(float(lat[0]), float(lat[-1]))
-    ax.set_aspect(1.0 / np.cos(np.deg2rad(float(lat.mean()))))
-    ax.tick_params(labelsize=7.5)
-    ax.grid(True, color="w", alpha=0.2, lw=0.4, zorder=3)
+                  norm=Normalize(0, 1), shading="auto", zorder=1.9,
+                  transform=studio.PLATE, rasterized=True)
+    ax.tick_params(labelsize=6.5, length=2.0, width=0.4)
 
 
 def fig_maps(ds, years, glacier, segs, kinds, scales, fig_dir: Path):
@@ -138,9 +149,14 @@ def fig_maps(ds, years, glacier, segs, kinds, scales, fig_dir: Path):
     for year in years:
         d = ds[year]
         lat, lon = d.latitude.values, d.longitude.values
-        fig, axes = plt.subplots(3, 7, figsize=(19.5, 8.8),
-                                 gridspec_kw={"width_ratios": [1] * 6 + [0.03]},
-                                 constrained_layout=True)
+        fig = plt.figure(figsize=(19.5, 8.8))
+        layout = fig.add_gridspec(3, 7, width_ratios=[1] * 6 + [0.03],
+                                  left=0.035, right=0.975, top=0.88, bottom=0.06,
+                                  wspace=0.06, hspace=0.12)
+        axes = np.array([[fig.add_subplot(layout[ri, ci],
+                                          projection=studio.PROJECTION) if ci < 6
+                          else fig.add_subplot(layout[ri, ci]) for ci in range(7)]
+                         for ri in range(3)], dtype=object)
         fig.suptitle(
             f"青藏高原云水资源代理指标 · {year} 年 5–10 月月平均\n"
             "代理量：可降水量 / 500 hPa 饱和度 / 中层 RH≥80% 层占比 —— "
@@ -156,19 +172,20 @@ def fig_maps(ds, years, glacier, segs, kinds, scales, fig_dir: Path):
                     continue
                 f = np.squeeze(blk[ci]) * (100.0 if spec == "cfrac" else 1.0)
                 panel(axes[ri, ci], f, lat, lon, norm, cmap, glacier, segs, kinds)
-                axes[ri, ci].set_title(MLAB[int(d.month.values[ci])], fontsize=9.5, pad=2)
+                axes[ri, ci].set_title(MLAB[int(d.month.values[ci])], fontsize=8.5, pad=2)
                 if ci:
                     axes[ri, ci].tick_params(labelleft=False)
                 if ri == 2:
                     axes[ri, ci].set_xlabel("经度 (°E)", fontsize=8)
             if ri == 0:
                 for r in range(3):
-                    axes[r, 0].set_ylabel("纬度 (°N)", fontsize=8)
+                    axes[r, 0].set_ylabel("纬度 (°N)", fontsize=7.5)
             cb_ax = axes[ri, 6]
             im = cb_ax.imshow([[0.0]], cmap=cmap, norm=norm, aspect="auto")
             cb = fig.colorbar(im, cax=cb_ax)
-            cb.set_label(title, fontsize=8.5)
-            cb.ax.tick_params(labelsize=7.5)
+            cb.set_label(title, fontsize=8.0)
+            cb.ax.tick_params(labelsize=7.0, length=2.0, width=0.4)
+            cb.outline.set_linewidth(0.4)
         fig.savefig(fig_dir / f"fig_maps_{year}.png", dpi=DPI)
         plt.close(fig)
         print("写出", f"figures/fig_maps_{year}.png", flush=True)
@@ -215,13 +232,15 @@ def fig_glacier_elevation(ds, years, glacier, fig_dir: Path):
         ax.bar(x + 0.19, ng_vals, 0.36, label="非冰川格点", color="#457b9d")
         ax.set_xticks(x, [str(v) for v in years_x])
         ax.set_title(f"{title}（5–10 月平均）", fontsize=10)
-        ax.legend(fontsize=8)
-        ax.grid(axis="y", alpha=0.3)
+        ax.legend(fontsize=7.5)
+        ax.grid(axis="y", linewidth=0.3, color="0.88")
+        ax.set_axisbelow(True)
         ax2.set_xlabel("估计海拔 (km，由地面气压折算)", fontsize=8.5)
         ax2.set_ylabel(title, fontsize=8.5)
         ax2.set_title(f"{title} 随高程的变化", fontsize=10)
         ax2.legend(fontsize=7.5, title="年份", title_fontsize=7.5)
-        ax2.grid(alpha=0.3)
+        ax2.grid(linewidth=0.3, color="0.88")
+        ax2.set_axisbelow(True)
     fig.suptitle(f"重点：冰川覆盖格点 vs 高原其余格点，以及沿高程的分布（{years[0]}–{years[-1]}，5–10 月）",
                  fontsize=13)
     fig.savefig(fig_dir / "fig_glacier_elevation.png", dpi=DPI)
@@ -244,8 +263,9 @@ def fig_timeseries(daily, fig_dir: Path):
                            (b, "#d7263d", "冰川格点")):
             ser = s[col].resample("D").mean().rolling(15, min_periods=5).mean()
             ax.plot(ser.index, ser.values, color=c, lw=1.2, label=lb)
-        ax.set_ylabel(lab, fontsize=9)
-        ax.grid(alpha=0.3)
+        ax.set_ylabel(lab, fontsize=8.5)
+        ax.grid(linewidth=0.3, color="0.88")
+        ax.set_axisbelow(True)
         ax.legend(fontsize=8, loc="upper left")
     yr = sorted(d["year"].unique())
     for y in yr:
@@ -279,8 +299,8 @@ def fig_crosssection(ds, years, fig_dir: Path):
         sp = d["surf_p"].isel(month=sel).mean(["month", "longitude"]).values
         lat, lev = d.latitude.values, d.level.values
         lv2, la2 = np.meshgrid(lev, lat)
-        im = ax.pcolormesh(lv2, la2, rhz.T, cmap="YlGnBu", norm=Normalize(0, 100),
-                           shading="auto")
+        im = ax.pcolormesh(lv2, la2, rhz.T, cmap=studio.CMAP_LIQUID,
+                           norm=Normalize(0, 100), shading="auto")
         cs = ax.contour(lv2, la2, rhz.T, levels=[80], colors="#d7263d", lw=1.8)
         ax.clabel(cs, fontsize=7.5)
         ax.plot(sp, lat, color="k", lw=1.6, label="估计地面气压（地形顶）")
@@ -290,7 +310,8 @@ def fig_crosssection(ds, years, fig_dir: Path):
         ax.set_ylabel("纬度 (°N)")
         ax.set_title(f"{y} 年 6–8 月：沿经度平均 RH 的经向–高度剖面", fontsize=10)
         ax.legend(fontsize=7.5, loc="lower left")
-        ax.grid(alpha=0.25)
+        ax.grid(linewidth=0.3, color="0.9")
+        ax.set_axisbelow(True)
     for ax in list(axes.ravel())[len(years):]:      # 年份不足 4 个时不留空面板
         ax.axis("off")
     if im is not None:
@@ -306,9 +327,14 @@ def fig_annual_comparison(ds, years, glacier, segs, kinds, fig_dir: Path):
     """跨年版 comparison：N 行(年份) × 3 列(6/7/8 月) 的 PW，直接看年际差异。"""
     lat = ds[years[0]].latitude.values
     lon = ds[years[0]].longitude.values
-    fig, axes = plt.subplots(len(years), 4, figsize=(14.5, 4.1 * len(years)),
-                             gridspec_kw={"width_ratios": [1, 1, 1, 0.03]},
-                             squeeze=False, constrained_layout=True)
+    fig = plt.figure(figsize=(14.5, 4.1 * len(years)))
+    layout = fig.add_gridspec(len(years), 4, width_ratios=[1, 1, 1, 0.03],
+                              left=0.05, right=0.97, top=0.93, bottom=0.05,
+                              wspace=0.06, hspace=0.12)
+    axes = np.array([[fig.add_subplot(layout[ri, ci],
+                                      projection=studio.PROJECTION) if ci < 3
+                      else fig.add_subplot(layout[ri, ci]) for ci in range(4)]
+                     for ri in range(len(years))], dtype=object)
     pool = np.concatenate([ds[y]["pw"].values.ravel() for y in years])
     # 用分位数定色标：以 0 为下限会把高原内部的差异压成一片同色
     norm = Normalize(float(np.nanpercentile(pool, 1)), float(np.nanpercentile(pool, 99)))
@@ -320,13 +346,16 @@ def fig_annual_comparison(ds, years, glacier, segs, kinds, fig_dir: Path):
                 axes[ri, ci].axis("off")
                 continue
             f = d["pw"].isel(month=[int(v) for v in d.month.values].index(m)).values
-            panel(axes[ri, ci], f, lat, lon, norm, "viridis", glacier, segs, kinds)
+            panel(axes[ri, ci], f, lat, lon, norm, studio.CMAP_LIQUID, glacier,
+                  segs, kinds)
             axes[ri, ci].set_title(f"{y} 年 {MLAB[m]}", fontsize=10, pad=2)
             axes[ri, ci].tick_params(labelleft=(ci == 0))
         cb_ax = axes[ri, 3]
-        im = cb_ax.imshow([[0.0]], cmap="viridis", norm=norm, aspect="auto")
+        im = cb_ax.imshow([[0.0]], cmap=studio.CMAP_LIQUID, norm=norm, aspect="auto")
         cb = fig.colorbar(im, cax=cb_ax)
-        cb.set_label("可降水量 PW (mm)", fontsize=8.5)
+        cb.set_label("可降水量 PW (mm)", fontsize=8.0)
+        cb.ax.tick_params(labelsize=7.0, length=2.0, width=0.4)
+        cb.outline.set_linewidth(0.4)
     fig.suptitle("年际对比：青藏高原 6–8 月可降水量（黄底=冰川格点，同一色标）", fontsize=13)
     fig.savefig(fig_dir / "fig_annual_comparison.png", dpi=DPI)
     plt.close(fig)

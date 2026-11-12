@@ -68,7 +68,8 @@ jobs:
           python -m pip install \
             "numpy>=1.26" "pandas>=2.1" "PyYAML>=6.0" "xarray>=2024.1" \
             "netCDF4>=1.7" "matplotlib>=3.8" "dask[array]>=2024.1" \
-            "flox>=0.9" "pyshp>=2.3" "pytest>=8.0" "ruff>=0.6"
+            "flox>=0.9" "pyshp>=2.3" "cartopy>=0.24" "cmcrameri>=1.8" \
+            "pytest>=8.0" "ruff>=0.6"
           python -m pip install -e . --no-deps
 
       - name: Run unit tests

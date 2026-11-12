@@ -138,6 +138,12 @@ Hydroweave/
 │   ├── DESIGN.md                📐 设计说明：每个口径"为什么这样取"、实测结论
 │   └── img/                     文档配图
 │
+├── experiments/figure_studio/   🎨 期刊级图件工作台（唯一渲染器）
+│   ├── style.py                 Nature 基线：字号、脊线、面板字母、横向色标
+│   ├── terrain.py               GTOPO30 高程子集 + 山体阴影 + 高原边界
+│   ├── synth.py                 仿真 clwc/ciwc 场（含噪「产品」场）
+│   └── figures.py               空间/垂直/误差/演变四张构图 + 通用面板构件
+│
 ├── experiments/tp_cloud_water/  核心实验代码（「算什么」）
 │   ├── config.yaml              ⭐ 唯一配置入口（区域/年份/层带/阈值/时次）
 │   ├── eda.py                   代理指标：柱积分、RH、地形掩膜、面积加权、断点续跑
@@ -334,6 +340,31 @@ GCWR = Qh,终 + Qh,出
 **最终判定：PASS**（2026-11-03 实测）
 
 ---
+
+## 🎨 图件标准（2026-11-12 定稿 · 全仓统一）
+
+| 项 | 规定 |
+|---|---|
+| 版心 | Nature 双栏 **180 mm**，正文 7 pt，面板字母粗体小写，色标横向贴面板正下方 |
+| 投影 | **Albers 等积圆锥**（中心经线 95°E，标准纬线 25°/47°N），非矩形投影不做投影校正 hack |
+| 底图 | Natural Earth 50m 海岸线/河流/湖泊/国界 + 1:4M 省界 + **GTOPO30 山体阴影** |
+| 配色 | cmcrameri 感知均匀色表（batlow / roma / vik），对数色标，零值留白露出底图 |
+| 网格 | 0.25° 物理场 → **0.025° 插值 + 高斯平滑 + 弱分形纹理**（消马赛克与锯齿），域边界 alpha 渐隐 |
+| 文字 | 图面一律英文（严格链路字体无 CJK 字形），中文对照写进 `summary.json` / 报告 |
+| 唯一渲染器 | `experiments/figure_studio/`：真实链路与仿真链路**共用同一套渲染器**，不再各画各的 |
+
+两条硬规矩：
+
+1. **仿真数据只用于图件风格验证，不得当观测结果** —— 每张图的脚注都写明数据来源；
+2. **覆盖率不足 50 % 时画格点标记，不做连续场插值** —— 免得把没有的结构插值出来。
+
+```bash
+# 仿真数据 + 期刊级图件（4 张：空间结构 / 垂直结构 / 误差结构 / 天气演变）
+PYTHONPATH=. python scripts/analysis/figure_studio_demo.py --run-id sim-20240715
+```
+
+真实链路出图仍走原有命令（`cloud_water_strict/plot.py`、`tp_cloud_water/plot.py`），
+渲染器换成 figure_studio 后图件风格自动一致。
 
 ## 🗺️ 图件示例
 
