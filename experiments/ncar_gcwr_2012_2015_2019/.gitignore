@@ -1,0 +1,14 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# Local data, manifests, caches and generated products
+homes/
+monthly/
+annual/
+figures/
+logs/
+evidence/
+state/*.json
+requests/*.yaml
+repairs/201201/*.nc
