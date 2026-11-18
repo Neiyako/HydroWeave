@@ -120,6 +120,76 @@ def test_mixing_ratio_unit_conversion():
         compute.convert_mixing_ratio(values, "%", "clwc")
 
 
+def test_quality_check_accepts_ncar_uppercase_variable_names():
+    """NCAR NCSS 使用 CLWC/CIWC；大小写不得把正确单位误判为 FAIL。"""
+    stats = {
+        "variables": {"liquid": "CLWC", "ice": "CIWC"},
+        "units": {
+            "CLWC_raw_unit": "kg kg**-1",
+            "CLWC_conversion_factor": 1.0,
+            "CIWC_raw_unit": "kg kg**-1",
+            "CIWC_conversion_factor": 1.0,
+            "pressure_raw_unit": "hPa",
+            "pressure_interpreted_as": "hPa",
+            "pressure_conversion_factor": 100.0,
+        },
+        "input": {"source_mode": "catalog", "catalog_imported": True,
+                  "volume_id": "downloads", "dataset_id": "ncar-test", "files": []},
+        "column": {
+            "full_column_hpa": [1.0, 1000.0],
+            "coverage_hpa": 999.0,
+            "covered_top_hpa": 1.0,
+            "covered_bottom_hpa": 1000.0,
+            "partial_column": False,
+            "coverage_fraction": 1.0,
+        },
+    }
+    quality = verify.data_quality_check(stats)
+    assert quality["passed"] is True
+    assert quality["clwc_conversion_factor"] == pytest.approx(1.0)
+    assert quality["ciwc_conversion_factor"] == pytest.approx(1.0)
+
+    stats["fields"] = {
+        "lwp": {"mean_g_m2": 92.7, "median_g_m2": 60.0, "p10_g_m2": 0.0,
+                "p90_g_m2": 200.0, "min_g_m2": 0.0, "max_g_m2": 500.0,
+                "valid_cells": 2, "total_cells": 2},
+        "iwp": {"mean_g_m2": 5.85, "median_g_m2": 3.0, "p10_g_m2": 0.0,
+                "p90_g_m2": 12.0, "min_g_m2": 0.0, "max_g_m2": 20.0,
+                "valid_cells": 2, "total_cells": 2},
+    }
+    magnitude = verify.magnitude_check(stats)
+    assert "完整柱" in magnitude["caveat"]
+    assert "300–500" not in magnitude["caveat"]
+
+    report = verify.render_report(
+        run_id="upper-case",
+        stats={
+            **stats,
+            "generated_at": "2024-01-01T00:00:00Z",
+            "fields": stats["fields"],
+            "time": {"selected_time": "2024-01-01T00:00:00", "n_times": 1,
+                     "selected_time_index": 0},
+            "grid": {"region": {}, "n_latitude": 1, "n_longitude": 1,
+                     "n_pressure_levels": 37},
+            "constants": {"g_m_s2": 9.80665},
+            "profiles": {},
+        },
+        identity=verify.identity_residual_evidence(),
+        analytic=verify.analytic_column_check(),
+        quality=quality,
+        magnitude=magnitude,
+        rows=verify.verdict_rows(
+            verify.identity_residual_evidence(), verify.analytic_column_check(),
+            quality, magnitude, stats),
+        overall="CONDITIONAL_PASS",
+        figures=[],
+        target=Path("/tmp/nonexistent-run"),
+    )
+    assert "`partial_column=false`" in report
+    assert "且为完整柱" in report
+    assert "且为部分列" not in report
+
+
 # ---------------------------------------------------------------- 端到端
 
 def test_fixture_end_to_end_compute_plot_verify(tmp_path):

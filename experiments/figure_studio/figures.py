@@ -769,7 +769,7 @@ def figure_map_field(latitude: np.ndarray, longitude: np.ndarray, values: np.nda
     map_h = map_w / MAP_ASPECT
     x_in = (fig_w - map_w) / 2
     axis = _map_axes(figure, _rect(x_in, 0.52, map_w, map_h, fig_w, fig_h), grid,
-                     shade_alpha=0.20, labels=True)
+                     shade_alpha=0.20, labels=True, shade=shade is not None)
     data = np.asarray(values, dtype="float64")
     positive = data[np.isfinite(data) & (data > 0)]
     if positive.size:
@@ -779,18 +779,20 @@ def figure_map_field(latitude: np.ndarray, longitude: np.ndarray, values: np.nda
     else:
         norm = None
     base = cmap if cmap is not None else CMAP_LIQUID
-    valid = np.isfinite(data) & (data > 0)
-    coverage = float(valid.sum()) / max(data.size, 1)
-    if coverage < 0.5:
-        # 覆盖率低（如 ERA5 canary 只含少数有效格点）：按格点画标记，
-        # 连续场插值会编造出并不存在的结构。
+    finite = np.isfinite(data)
+    positive = finite & (data > 0)
+    positive_coverage = float(positive.sum()) / max(data.size, 1)
+    if positive_coverage < 0.5:
+        # 对数色标无法映射零值；正值格点少于一半时按格点画标记，避免把
+        # 晴空零值经连续插值伪造为微弱云水。零值不是缺测，因此文案明确区分。
         lon_grid, lat_grid = np.meshgrid(longitude, latitude)
-        mesh = axis.scatter(lon_grid[valid], lat_grid[valid], c=data[valid],
+        mesh = axis.scatter(lon_grid[positive], lat_grid[positive], c=data[positive],
                             s=9.0, marker="s", cmap=_log_cmap(base), norm=norm,
                             linewidths=0.15, edgecolors="#ffffff", transform=PLATE,
                             zorder=3, rasterized=True)
-        sparse_note = (f" {int(valid.sum())} of {data.size} grid cells carry valid "
-                       "values; plotted as grid-cell markers, not as a continuous field.")
+        sparse_note = (f" {int(positive.sum())} of {data.size} grid cells contain positive "
+                       "values; zero/clear-sky cells are left unmapped on the logarithmic "
+                       "scale. Positive cells are shown as grid-cell markers, not interpolated.")
     else:
         mesh = _field_on_map(axis, grid, data, cmap=_log_cmap(base), norm=norm, seed=seed)
         sparse_note = ""
@@ -799,7 +801,12 @@ def figure_map_field(latitude: np.ndarray, longitude: np.ndarray, values: np.nda
     figure.suptitle(title, fontsize=8.2, y=0.975)
     figure.canvas.draw()
     _add_cbar(figure, axis, mesh, units, log_ticks=norm is not None)
-    style.add_scale_note(figure, note + sparse_note)
+    terrain_note = (
+        " Hillshade from GTOPO30."
+        if shade is not None
+        else " Hillshade unavailable; basemap-only fallback."
+    )
+    style.add_scale_note(figure, note + sparse_note + terrain_note)
     figure.savefig(path)
     plt.close(figure)
     return FigureSpec(name=path.name, path=path, title=title)

@@ -275,7 +275,9 @@ def evaluate(t: BudgetTerms, total_condensation=None) -> dict:
     gcwr_total, gcwr_term, gcwr_init, spread = gcwr(t, c_net=c_net)
     eff = efficiency(t, total_condensation=total_condensation, c_net=c_net)
     area_denom = t.duration_s
-    scale = min(abs(t.qh_init), abs(t.rain_kg), abs(t.qh_in), 1.0)
+    # 以最小非零物理分项作为相对阈值尺度；不能把常数 1.0 放进 min，
+    # 否则真实大数分项的阈值会被压成 1e-9 kg，浮点舍入必然误报失败。
+    scale = max(min(abs(t.qh_init), abs(t.rain_kg), abs(t.qh_in)), 1.0)
     return {
         "duration_days": t.duration_s / SECONDS_PER_DAY,
         "GQv_kg": tot["GQv"], "GQh_kg": tot["GQh"], "GQm_kg": tot["GQm"],

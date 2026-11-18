@@ -45,7 +45,7 @@ FIGURE_NAMES = (
 # 文献量级带：只用于「数量级是否荒谬」核对，不是逐格点气候态，也不是本仓结论。
 MAGNITUDE_BANDS: dict[str, dict[str, Any]] = {
     # 文献给出的青藏高原云水路径量级是 10^1–10^2 g·m⁻²（整列）。本样本是
-    # 300–500 hPa 部分列、数值天然小于整列，因此按 ±1 个数量级放宽成
+    # 文献带与当前柱覆盖口径不同，因此按宽量级带核对，不把差异冒充 PASS。
     # 「数量级荒谬性带」：只回答「是否离谱一个量级以上」，不回答气候态是否匹配。
     "LWP": {
         "band_g_m2": (1.0, 2000.0),
@@ -96,8 +96,8 @@ NOT_RUN_ITEMS = [
      "missing": "多年逐日（或逐月）样本与季节循环",
      "why": "单时次快照不能外推年尺度云水资源量或趋势"},
     {"item": "与文献逐格点气候态定量比对",
-     "missing": "同一区域/季节/层的文献格点场与完整气压柱",
-     "why": "本样本仅覆盖 300–500 hPa（partial column），不可当整列气候态"},
+     "missing": "同一区域/季节/层的文献格点场与匹配的时间平均口径",
+     "why": "单时次快照缺少逐格点气候态对照，不能建立空间气候态结论"},
 ]
 
 
@@ -189,6 +189,8 @@ def analytic_column_check() -> dict[str, Any]:
 def magnitude_check(stats: dict[str, Any]) -> dict[str, Any]:
     """区域平均 LWP/IWP 与文献量级带比对；只允许 CONDITIONAL_PASS / 不足证据。"""
     entries: dict[str, dict[str, Any]] = {}
+    column = stats["column"]
+    column_label = "部分列" if column["partial_column"] else "完整柱"
     for name, band in MAGNITUDE_BANDS.items():
         key = "lwp" if name == "LWP" else "iwp"
         value = float(stats["fields"][key]["mean_g_m2"])
@@ -200,10 +202,10 @@ def magnitude_check(stats: dict[str, Any]) -> dict[str, Any]:
         elif within:
             state = CONDITIONAL_PASS
             reason = (f"落在文献量级带 {low:g}–{high:g} g·m⁻² 内；但单时次 + "
-                      "partial column 不能建立气候态结论")
+                      f"{column_label}不能建立气候态结论")
         elif value < low:
             state = INSUFFICIENT_EVIDENCE
-            reason = (f"低于文献量级带下界 {low:g} g·m⁻²；部分列/单时次样本可偏低，"
+            reason = (f"低于文献量级带下界 {low:g} g·m⁻²；{column_label}/单时次样本可偏低，"
                       "不能据此判 PASS 或 FAIL")
         else:
             state = INSUFFICIENT_EVIDENCE
@@ -224,7 +226,8 @@ def magnitude_check(stats: dict[str, Any]) -> dict[str, Any]:
     return {
         "entries": entries,
         "combined_state": combined,
-        "caveat": "文献值为整列（LWP/IWP 全柱）月尺度量级；本样本仅 300–500 hPa 部分列",
+        "caveat": (f"文献值为整列（LWP/IWP 全柱）月尺度量级；本样本为{column_label}、"
+                   "单时次快照，不能直接等价为气候态"),
         "references": {key: REFERENCES[key] for key in
                        {source for entry in entries.values() for source in entry["sources"]}},
     }
@@ -235,8 +238,14 @@ def magnitude_check(stats: dict[str, Any]) -> dict[str, Any]:
 def data_quality_check(stats: dict[str, Any]) -> dict[str, Any]:
     """变量/单位/坐标/partial_column 标记的实现口径检查（可判 PASS/FAIL）。"""
     units = stats["units"]
-    factors = [float(units.get("clwc_conversion_factor", np.nan)),
-               float(units.get("ciwc_conversion_factor", np.nan))]
+    liquid_name = stats.get("variables", {}).get("liquid", "clwc")
+    ice_name = stats.get("variables", {}).get("ice", "ciwc")
+
+    def _unit_value(canonical: str, actual: str, suffix: str) -> Any:
+        return units.get(f"{canonical}_{suffix}", units.get(f"{actual}_{suffix}"))
+
+    factors = [float(_unit_value("clwc", liquid_name, "conversion_factor")),
+               float(_unit_value("ciwc", ice_name, "conversion_factor"))]
     variables_ok = stats["input"]["source_mode"] in {"catalog", "local_override"}
     unit_ok = all(factor in (1.0, 1.0e-3) for factor in factors)
     pressure_ok = units.get("pressure_interpreted_as") in {"Pa", "hPa"}
@@ -250,12 +259,12 @@ def data_quality_check(stats: dict[str, Any]) -> dict[str, Any]:
     partial_consistent = bool(column["partial_column"]) == expected_partial
     passed = bool(variables_ok and unit_ok and pressure_ok and partial_consistent)
     return {
-        "liquid_variable": stats.get("variables", {}).get("liquid", "clwc"),
-        "ice_variable": stats.get("variables", {}).get("ice", "ciwc"),
-        "clwc_raw_unit": units.get("clwc_raw_unit"),
-        "ciwc_raw_unit": units.get("ciwc_raw_unit"),
-        "clwc_conversion_factor": units.get("clwc_conversion_factor"),
-        "ciwc_conversion_factor": units.get("ciwc_conversion_factor"),
+        "liquid_variable": liquid_name,
+        "ice_variable": ice_name,
+        "clwc_raw_unit": _unit_value("clwc", liquid_name, "raw_unit"),
+        "ciwc_raw_unit": _unit_value("ciwc", ice_name, "raw_unit"),
+        "clwc_conversion_factor": _unit_value("clwc", liquid_name, "conversion_factor"),
+        "ciwc_conversion_factor": _unit_value("ciwc", ice_name, "conversion_factor"),
         "pressure_raw_unit": units.get("pressure_raw_unit"),
         "pressure_interpreted_as": units.get("pressure_interpreted_as"),
         "pressure_conversion_factor": units.get("pressure_conversion_factor", 1.0),
@@ -415,6 +424,24 @@ def render_report(*, run_id: str, stats: dict[str, Any], identity: dict[str, Any
     else:
         multi_time_section = ""
     unit_notes = stats["units"]
+    column_label = "部分列" if column["partial_column"] else "完整柱"
+    quality_state = PASS if quality["passed"] else FAIL
+    if column["partial_column"]:
+        column_limit = (
+            f"- 部分列（{column['covered_top_hpa']:.0f}–{column['covered_bottom_hpa']:.0f} hPa）：\n"
+            "  积分只覆盖该层，且未做地面以下/顶层外推；与整列气候态数值不可直接等价。")
+        column_method = (
+            f"覆盖为名义整列（{column['full_column_hpa'][0]:.0f}–"
+            f"{column['full_column_hpa'][1]:.0f} hPa）的 "
+            f"{column['coverage_fraction']:.1%} 时标记 `partial_column=true`。")
+    else:
+        column_limit = (
+            "- 完整柱快照：积分覆盖 1–1000 hPa 的全部 37 层，但仍是单时次快照；\n"
+            "  垂直覆盖完整不等于时间或气候态代表性。")
+        column_method = (
+            f"数据覆盖名义整列（{column['full_column_hpa'][0]:.0f}–"
+            f"{column['full_column_hpa'][1]:.0f} hPa），"
+            f"覆盖比例 {column['coverage_fraction']:.1%}，标记 `partial_column=false`。")
     return f"""# ERA5 clwc/ciwc 云水柱含量验证报告（{run_id}）
 
 - 实验：`cloud_water_strict`；run-id：`{run_id}`；生成时间：{stats['generated_at']}
@@ -426,12 +453,12 @@ def render_report(*, run_id: str, stats: dict[str, Any], identity: dict[str, Any
 - **代数实现层 PASS**：式 (20)(21)(22) 三式相对残差 {identity['relative_residual']:.3e}
   ≤ 1e-12；常数场柱积分相对误差 {analytic['relative_error']:.3e}。这两项只证明
   「实现与论文公式一致」，不是物理检验。
-- **口径层 PASS**：clwc/ciwc 单位换算与气压层单位显式记录；本样本仅覆盖
+- **口径层 {quality_state}**：clwc/ciwc 单位换算与气压层单位显式记录；本样本覆盖
   {column['covered_top_hpa']:.0f}–{column['covered_bottom_hpa']:.0f} hPa，
   已显式标注 `partial_column={str(column['partial_column']).lower()}`，未外推整列。
 - **量级层 {magnitude['combined_state']}**：区域平均 LWP={lwp['mean_g_m2']:.3g} g·m⁻²、
   IWP={iwp['mean_g_m2']:.3g} g·m⁻²；仅与文献量级带做宽区间核对。单时次 +
-  部分列，**不能**据此得出气候态或云水资源量结论。
+  {column_label}，**不能**据此得出气候态或云水资源量结论。
 - **NOT_RUN**：GCWR 收支闭合（式 30/31/32）与年度尺度结论均未运行（缺 P/E/
   边界通量/长时段），NOT_RUN ≠ PASS。
 
@@ -454,15 +481,14 @@ def render_report(*, run_id: str, stats: dict[str, Any], identity: dict[str, Any
 - 连续定义：LWP = ∫(clwc/g)dp，IWP = ∫(ciwc/g)dp，单位 kg·m⁻²。
 - 离散化：相邻气压层用梯形权重 0.5·(q_{{k}}+q_{{k+1}})·Δp/g；g = {stats['constants']['g_m_s2']} m·s⁻²。
 - **不做顶层/底层外推**：只积分数据实际覆盖的 {column['coverage_hpa']:.0f} hPa；
-  覆盖为名义整列（{column['full_column_hpa'][0]:.0f}–{column['full_column_hpa'][1]:.0f} hPa）
-  的 {column['coverage_fraction']:.1%} 时标记 `partial_column=true`。
+  {column_method}
 - 区域平均：cosφ 面积权重，w(φ)=cosφ / Σcosφ。
 - 缺测：NaN 不会被当作 0；任一端点缺测的区间使该格点柱含量为 NaN。
 
 ## 4. 结果
 
 > 口径：单时次 {stats['time']['selected_time']} 的快照统计（共 {stats['time']['n_times']} 个时次，
-> 未做多时次平均），且为部分列——不是月/季气候态。
+> 未做多时次平均），且为{column_label}——不是月/季气候态。
 
 | 指标 | LWP | IWP |
 |---|---:|---:|
@@ -514,8 +540,7 @@ def render_report(*, run_id: str, stats: dict[str, Any], identity: dict[str, Any
 ## 10. 局限
 
 - 单时次快照：无日变化、无季节循环，不能代表气候态。
-- 部分列（{column['covered_top_hpa']:.0f}–{column['covered_bottom_hpa']:.0f} hPa）：
-  积分只覆盖该层，且未做地面以下/顶层外推；与整列气候态数值不可直接等价。
+{column_limit}
 - 量级核对是宽区间日志度检查，不替代逐格点/逐月气候态比对。
 - 真实物理闭合（GCWR 收支）需要 P、E、u/v 边界通量与同一控制体的长时段数据。
 

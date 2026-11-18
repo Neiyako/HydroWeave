@@ -65,6 +65,18 @@ def test_gcwr_three_expressions_agree():
     assert spread == pytest.approx(0.0, abs=1e-6 * abs(a))
 
 
+def test_gcwr_identity_tolerance_scales_with_large_real_terms():
+    """真实量级下 0.02 kg 的浮点差不能触发 1e-9 kg 的绝对阈值。"""
+    t = _terms(qv_init=5.656e13, qv_final=9.312e13,
+               qh_init=6.373e11, qh_final=8.964e11,
+               qv_in=9.913e14, qv_out=9.253e14,
+               qh_in=6.217e12, qh_out=1.046e13,
+               rain_kg=3.232e14)
+    rep = B.evaluate(t)
+    assert rep["gcwr_identity_spread_kg"] < 1.0
+    assert rep["gcwr_identity_ok"] is True
+
+
 def test_gcwr_equals_qh_total_minus_rain():
     t = _terms(c_net=None) if False else _terms()
     c_net = B.net_condensation(t)

@@ -70,8 +70,8 @@ def plot_all(config_path: str | Path, run_id: str) -> list[dict[str, Any]]:
     longitude = np.asarray(fields["longitude"].values, dtype="float64")
     lwp = np.asarray(fields["lwp"].values, dtype="float64") * 1000.0   # g m-2
     iwp = np.asarray(fields["iwp"].values, dtype="float64") * 1000.0
-    source_note = (f"ERA5 clwc/ciwc, run {run_id}. {note}. "
-                   "Colour scale is logarithmic; hillshade from GTOPO30.")
+    source_note = (f"ERA5 clwc/ciwc via NSF NCAR RDA d633000, run {run_id}. {note}. "
+                   "Colour scale is logarithmic.")
 
     specs = [
         figures.figure_map_field(

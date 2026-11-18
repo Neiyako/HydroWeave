@@ -231,6 +231,13 @@ def load_cloud_water(config: dict[str, Any], inputs: dict[str, Any]
         dataset[name].attrs["units"] = "kg kg**-1"
         unit_notes[f"{name}_raw_unit"] = raw_unit
         unit_notes[f"{name}_conversion_factor"] = factor
+    # 固定语义键：NCAR NCSS 等来源使用 CLWC/CIWC 大写变量名，验收器仍按
+    # clwc/ciwc 的统一口径读取，避免把命名大小写差异误判为数据错误。
+    for canonical, actual in (("clwc", liquid_name), ("ciwc", ice_name)):
+        unit_notes[f"{canonical}_raw_unit"] = unit_notes.get(f"{canonical}_raw_unit",
+                                                            unit_notes.get(f"{actual}_raw_unit"))
+        unit_notes[f"{canonical}_conversion_factor"] = unit_notes.get(
+            f"{canonical}_conversion_factor", unit_notes.get(f"{actual}_conversion_factor"))
 
     # 时次：保留全部时次，由 run() 选 config.time.index 的时次做场/统计；
     # 其余时次只用于可选的「多时次快照范围」，与单时次口径分开报告。
