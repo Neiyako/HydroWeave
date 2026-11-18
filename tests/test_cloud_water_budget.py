@@ -1,6 +1,8 @@
 """收支模型与误差分析的单元测试（合成数字，不碰外接盘）。"""
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
@@ -75,6 +77,13 @@ def test_gcwr_identity_tolerance_scales_with_large_real_terms():
     rep = B.evaluate(t)
     assert rep["gcwr_identity_spread_kg"] < 1.0
     assert rep["gcwr_identity_ok"] is True
+
+
+def test_evaluate_result_is_json_serializable():
+    """回归：向 JSON 写入 `units` 时不能残留 dataclasses.Field 元数据对象。"""
+    rep = B.evaluate(_terms())
+    assert isinstance(rep["units"], str)
+    json.dumps(rep)
 
 
 def test_gcwr_equals_qh_total_minus_rain():

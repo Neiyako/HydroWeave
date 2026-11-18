@@ -303,7 +303,7 @@ def evaluate(t: BudgetTerms, total_condensation=None) -> dict:
             np.isclose(t.qm_init, t.qv_init + t.qh_init)
             and np.isclose(t.qm_final, t.qv_final + t.qh_final)),
         "cumulative_sum_naive_kg": tot["GQv"] + tot["GQh"],
-        "units": field(default="kg（除效率为无量纲、周期为天/小时）"),
+        "units": "kg（除效率为无量纲、周期为天/小时）",
     }
 
 
